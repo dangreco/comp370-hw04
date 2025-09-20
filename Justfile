@@ -5,20 +5,49 @@ _default:
     @just --list
     echo "{{root}}"
 
+@setup:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    TMP=$(mktemp -d)
+
+    cleanup() {
+        rm -rf "$TMP"
+    }
+
+    trap cleanup EXIT SIGINT SIGTERM
+
+    curl -L -o "$TMP/dataset.zip" https://www.kaggle.com/api/v1/datasets/download/liury123/my-little-pony-transcript
+    unzip "$TMP/dataset.zip" -d "$TMP"
+
+    mkdir -p "{{root}}/.in"
+    mv "$TMP"/*.csv "{{root}}/.in/"
+
+@clean:
+    rm -rf "{{root}}/.in"
+    rm -rf "{{root}}/.out"
+
 @run:
     sh src/frequency.sh
 
-@clean:
-    rm -rf "{{root}}/.out"
+@build:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    mkdir -p "{{root}}/.out"
+
+    just run >> "{{root}}/.out/frequency.csv"
+
 
 @bundle:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    mkdir -p "{{root}}/.out"
-    mkdir -p "{{root}}/.out/bundle"
+    just clean
+    just setup
+    just build
 
-    just run >> "{{root}}/.out/frequency.csv"
+    mkdir -p "{{root}}/.out/bundle"
 
     cp "{{root}}/.out/frequency.csv" "{{root}}/.out/bundle/Line_percentages.csv"
     cp "{{root}}/md/explore.md" "{{root}}/.out/bundle/explore.md"
